@@ -4,11 +4,12 @@ import csv
 import codecs
 from itertools import groupby
 
-from clld.scripts.util import initializedb, Data
+from clld.scripts.util import initializedb, Data, bibtex2source
 from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.util import slug
 from clld.lib.dsv import rows
+from clld.lib.bibtex import Database
 
 import autotyp
 from autotyp import models
@@ -25,6 +26,8 @@ def main(args):
         name="AUTOTYP",
         domain='autotyp.clld.org')
     DBSession.add(dataset)
+
+    bib = Database.from_file(args.data_file('LenaBib.bib'), lowercase=True)
 
     for i, spec in enumerate([
         ('bickel', "Balthasar Bickel", "University of Zurich"),
@@ -67,12 +70,24 @@ def main(args):
             stock=stock,
             area=area)
 
+    varspec = [
+        ('alignment', set()),
+        ('referential_type', set()),
+        ('tense_aspect', set()),
+        ('morphological_form.PoS', set()),
+        ('A.marked', set()),
+        ('P.marked', set())]
     p = data.add(
         common.Parameter, 'case.alignment',
-        id='1', name='case alignment')
+        id='1',
+        name='case alignment')
     contrib = data.add(
         common.Contribution, 'case.alignment',
         id="1", name="case alignment")
+    alena = data.add(
+        common.Contributor, 'witzlack',
+        id='witzlack', name='Alena Witzlack-Makarevich')
+    DBSession.add(common.ContributionContributor(contribution=contrib, contributor=alena))
 
     with codecs.open(args.data_file('case.alignment.Dec.2013.csv')) as fp:
         allv = list(csv.DictReader(fp))
@@ -82,6 +97,8 @@ def main(args):
 
     for lid, values in groupby(sorted(allv, key=lambda j: j['LID']), lambda i: i['LID']):
         vsid = '%s-%s' % (p.id, lid)
+        values = list(values)
+
         if vsid not in data['ValueSet']:
             vs = data.add(
                 common.ValueSet, vsid,
@@ -92,17 +109,43 @@ def main(args):
         else:
             vs = data['ValueSet'][vsid]
 
+        bibkeys = []
+        for v in values:
+            bibkeys.extend(filter(None, [v.strip() for v in v['bibtex'].split(',')]))
+
+        for key in set(bibkeys):
+            if key in data['Source']:
+                source = data['Source'][key]
+            else:
+                if key in bib.keymap:
+                    source = data.add(common.Source, key, _obj=bibtex2source(bib[key]))
+                else:
+                    print key
+# Marchese1978Time
+# Kibriketal2000Jazyk
+# check Mreta1998Analysis
+# Nababan1971Grammar
+# Werleetal1976Phonologie
+
+                    source = None
+            if source:
+                DBSession.add(common.ValueSetReference(valueset=vs, source=source))
+
         for i, value in enumerate(values):
             vid = '%s-%s' % (vsid, i + 1)
             v = data.add(
                 common.Value, vid,
                 id=vid,
-                name='%(alignment)s %(referential_type)s %(tense_aspect)s %(morphological_form.PoS)s %(A.marked)s %(P.marked)s' % value,
+                name=' '.join('%('+spec[0]+')s' for spec in varspec) % value,
                 jsondata=value,
                 valueset=vs)
             DBSession.flush()
-            for j, attr in enumerate('alignment referential_type tense_aspect morphological_form.PoS A.marked P.marked'.split()):
+            for j, spec in enumerate(varspec):
+                attr, domain = spec
+                domain.add(value[attr])
                 DBSession.add(common.Value_data(key=attr, value=value[attr], ord=j, object_pk=v.pk))
+
+    p.jsondata = {'varspec': [(name, list(domain)) for name, domain in varspec]}
 
 
 def prime_cache(args):
