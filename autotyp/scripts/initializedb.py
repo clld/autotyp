@@ -3,8 +3,11 @@ import sys
 import csv
 import codecs
 from itertools import groupby
+from getpass import getuser
 
-from clld.scripts.util import initializedb, Data, bibtex2source
+from clld.scripts.util import (
+    initializedb, Data, bibtex2source, glottocodes_by_isocode, add_language_codes,
+)
 from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.util import slug
@@ -20,10 +23,15 @@ def coord(value):
 
 
 def main(args):
+    glottocodes = {}
+    if getuser() == 'robert':
+        glottocodes = glottocodes_by_isocode('postgresql://robert@/glottolog3')
+
     data = Data()
     dataset = common.Dataset(
         id=autotyp.__name__,
         name="AUTOTYP",
+        description="AUTOTYP",
         domain='autotyp.clld.org')
     DBSession.add(dataset)
 
@@ -61,7 +69,7 @@ def main(args):
         else:
             area = data['Area'][l.area]
 
-        data.add(
+        lang = data.add(
             models.Languoid, l.LID,
             id=l.LID,
             name=l.language,
@@ -69,6 +77,7 @@ def main(args):
             longitude=coord(l.longitude),
             stock=stock,
             area=area)
+        add_language_codes(data, lang, l.ISO639_3_2013, glottocodes=glottocodes)
 
     varspec = [
         ('alignment', set()),

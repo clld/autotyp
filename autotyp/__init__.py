@@ -9,4 +9,5 @@ def main(global_config, **settings):
     """
     config = get_configurator('autotyp', settings=settings)
     config.include('autotyp.datatables')
+    config.include('autotyp.adapters')
     return config.make_wsgi_app()
