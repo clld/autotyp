@@ -1,6 +1,6 @@
 from sqlalchemy.orm import joinedload
 
-from clld.interfaces import IParameter, ILanguage, IIndex
+from clld.interfaces import IParameter, IValue, IIndex
 from clld.db.meta import DBSession
 from clld.db.models.common import ValueSet
 from clld.web.adapters.base import Index
@@ -24,7 +24,7 @@ class MapView(Index):
     template = 'language/map_html.mako'
 
     def template_context(self, ctx, req):
-        languages = list(ctx.get_query(limit=8000))
+        languages = list(v.valueset.language for v in ctx.get_query(limit=8000))
         return {
             'map': SelectedLanguagesMap(ctx, req, languages),
             'languages': languages}
@@ -32,4 +32,4 @@ class MapView(Index):
 
 def includeme(config):
     config.register_adapter(GeoJsonFeature, IParameter)
-    config.register_adapter(MapView, ILanguage, IIndex)
+    config.register_adapter(MapView, IValue, IIndex)
