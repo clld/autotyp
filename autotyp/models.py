@@ -34,7 +34,7 @@ class Area(Base, IdNameDescriptionMixin):
 # specialized common mapper classes
 #-----------------------------------------------------------------------------
 @implementer(interfaces.ILanguage)
-class Languoid(Language, CustomModelMixin):
+class Languoid(CustomModelMixin, Language):
     pk = Column(Integer, ForeignKey('language.pk'), primary_key=True)
     area_pk = Column(Integer, ForeignKey('area.pk'))
     area = relationship(Area, backref='languages')
