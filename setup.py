@@ -1,15 +1,7 @@
 from setuptools import setup, find_packages
 
 requires = [
-    'clld',
-    'pyramid',
-    'SQLAlchemy',
-    'transaction',
-    'pyramid_tm',
-    'zope.sqlalchemy',
-    'gunicorn',
-    'psycopg2',
-    'waitress',
+    'clld>=0.28',
     ]
 
 setup(name='autotyp',
